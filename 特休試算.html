@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>特別休假試算 · 歷年制（按月）</title>
+<style>
+  :root{
+    --paper:#F4F6F8; --card:#FFFFFF;
+    --ink:#1A2530; --ink-soft:#5B6876; --ink-faint:#8A95A2;
+    --line:#E3E7EC; --line-soft:#EEF1F4;
+    --blue:#2D63E0; --blue-deep:#1E47AB; --blue-wash:#EAF0FD;
+    --amber:#C9772A; --green:#2F8268;
+    --radius:14px;
+    --mono:"SFMono-Regular","SF Mono","Roboto Mono",ui-monospace,Menlo,Consolas,monospace;
+    --sans:"PingFang TC","Noto Sans TC","Microsoft JhengHei","Helvetica Neue",system-ui,sans-serif;
+  }
+  *{box-sizing:border-box} html,body{margin:0}
+  body{font-family:var(--sans);background:var(--paper);color:var(--ink);line-height:1.6;-webkit-font-smoothing:antialiased;padding:24px 16px 64px}
+  .wrap{max-width:760px;margin:0 auto}
+  header{margin:8px 4px 22px}
+  .eyebrow{font-size:12px;letter-spacing:.18em;font-weight:600;color:var(--blue);text-transform:uppercase;margin-bottom:10px}
+  h1{font-size:27px;font-weight:700;margin:0 0 8px;letter-spacing:-.01em}
+  header p{margin:0;color:var(--ink-soft);font-size:14.5px;max-width:62ch}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:22px;margin-bottom:16px}
+  .fields{display:grid;grid-template-columns:1.3fr 1fr;gap:16px}
+  @media(max-width:520px){.fields{grid-template-columns:1fr}}
+  label{display:block;font-size:13px;font-weight:600;color:var(--ink-soft);margin-bottom:7px}
+  .hint{font-weight:400;color:var(--ink-faint)}
+  input[type=date],input[type=number]{width:100%;font:inherit;font-size:16px;color:var(--ink);padding:11px 13px;border:1px solid var(--line);border-radius:10px;background:#FBFCFD;-webkit-appearance:none;appearance:none}
+  input:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-wash)}
+  .roc{margin-top:7px;font-size:12.5px;color:var(--ink-faint);min-height:18px;font-variant-numeric:tabular-nums}
+  .eligible{display:flex;align-items:center;gap:9px;margin-top:18px;padding:12px 14px;background:var(--blue-wash);border:1px solid #CBDBF7;border-radius:11px;font-size:13.5px;color:var(--blue-deep);line-height:1.5}
+  .eligible svg{flex:none;color:var(--blue)}
+  .eligible b{font-weight:700;font-variant-numeric:tabular-nums}
+  .empty{text-align:center;color:var(--ink-faint);padding:34px 12px;font-size:14.5px}
+  .empty svg{display:block;margin:0 auto 12px;opacity:.5}
+  .result-label{font-size:13.5px;color:var(--ink-soft);font-weight:600;margin-bottom:2px}
+  .result-label b{color:var(--ink);font-weight:700}
+  .bignum{font-family:var(--mono);font-weight:700;font-size:64px;line-height:1;letter-spacing:-.02em;color:var(--amber);font-variant-numeric:tabular-nums;margin:6px 0 2px}
+  .bignum span{font-size:24px;color:var(--ink);font-weight:600;margin-left:6px}
+  .rawline{font-size:13.5px;color:var(--ink-soft);font-variant-numeric:tabular-nums}
+  .rawline .arrow{color:var(--ink-faint);margin:0 7px}
+  .rawline b{color:var(--ink);font-weight:700;font-family:var(--mono)}
+  /* month strip */
+  .bar-section{margin-top:22px}
+  .bar-title{font-size:12px;font-weight:600;letter-spacing:.04em;color:var(--ink-faint);margin-bottom:12px;text-transform:uppercase}
+  .mstrip{display:flex;gap:4px;align-items:stretch}
+  .mgroup{flex-grow:1;flex-basis:0;min-width:0;border-radius:9px;padding:9px 6px 8px;color:#fff;display:flex;flex-direction:column;align-items:center;text-align:center;overflow:hidden}
+  .mgroup.none{background:#C7CED6;color:#566270}
+  .mg-label{font-size:11px;font-weight:600;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+  .mg-cells{display:flex;flex-wrap:wrap;justify-content:center;gap:2px;margin:6px 0 5px}
+  .mg-cells span{font-family:var(--mono);font-size:10px;font-weight:600;background:rgba(255,255,255,.22);border-radius:4px;padding:1px 4px;line-height:1.4}
+  .mgroup.none .mg-cells span{background:rgba(0,0,0,.06)}
+  .mg-contrib{font-family:var(--mono);font-size:14px;font-weight:700;line-height:1}
+  .mg-contrib small{font-weight:500;opacity:.8;font-size:10px}
+  table{width:100%;border-collapse:collapse;margin-top:18px;font-size:13px}
+  th,td{padding:9px 8px;text-align:right;border-bottom:1px solid var(--line-soft)}
+  th:first-child,td:first-child{text-align:left}
+  thead th{font-size:11px;letter-spacing:.04em;color:var(--ink-faint);font-weight:600;border-bottom:1px solid var(--line)}
+  tbody td{color:var(--ink-soft);font-variant-numeric:tabular-nums}
+  tbody td.num{font-family:var(--mono);color:var(--ink)}
+  tbody tr:last-child td{border-bottom:none}
+  tfoot td{padding-top:11px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}
+  tfoot td.num{font-family:var(--mono)}
+  .ov-title{font-size:12px;font-weight:600;letter-spacing:.04em;color:var(--ink-faint);margin-bottom:4px;text-transform:uppercase}
+  .ov-wrap{overflow-x:auto}
+  table.ov td,table.ov th{text-align:center;padding:8px 10px}
+  table.ov td:first-child,table.ov th:first-child{text-align:left}
+  table.ov tbody td{font-family:var(--mono);color:var(--ink)}
+  table.ov tbody td:first-child{font-family:var(--sans);color:var(--ink-soft);font-variant-numeric:tabular-nums}
+  table.ov tr.here{background:var(--blue-wash)}
+  table.ov tr.here td{color:var(--blue-deep);font-weight:700}
+  .tag{display:inline-block;font-size:10px;font-family:var(--sans);font-weight:700;color:#fff;background:var(--blue);border-radius:5px;padding:1px 6px;margin-left:6px;vertical-align:1px}
+  .notes{font-size:12.5px;color:var(--ink-faint);line-height:1.7}
+  .notes b{color:var(--ink-soft)}
+  .notes ul{margin:8px 0 0;padding-left:18px}
+  .notes li{margin-bottom:5px}
+  .hide{display:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">員工自助試算</div>
+    <h1>特別休假試算</h1>
+    <p>輸入到職日，查看指定年度可休的特休天數。本公司採<b>歷年制（按月計算）</b>：把當年度逐月歸入對應年資級距，<b>不足一個月者以一個月計</b>，滿 6 個月該段以 ÷6、其餘級距以 ÷12 換算比例，最後<b>四捨五入</b>取整天。</p>
+  </header>
+
+  <div class="card">
+    <div class="fields">
+      <div>
+        <label for="hire">到職日</label>
+        <input type="date" id="hire">
+        <div class="roc" id="hireRoc"></div>
+      </div>
+      <div>
+        <label for="year">試算年度 <span class="hint">（西元）</span></label>
+        <input type="number" id="year" value="2026" step="1">
+        <div class="roc" id="yearRoc"></div>
+      </div>
+    </div>
+    <div class="eligible hide" id="eligible">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+      <span id="eligibleText"></span>
+    </div>
+  </div>
+
+  <div class="card" id="resultCard">
+    <div class="empty" id="empty">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/>
+      </svg>
+      先填入到職日，下面就會算出你的特休天數。
+    </div>
+
+    <div id="result" class="hide">
+      <div class="result-label">特休天數 · <b id="ryear"></b></div>
+      <div class="bignum" id="days">–<span>天</span></div>
+      <div class="rawline" id="raw"></div>
+
+      <div class="bar-section" id="barSection">
+        <div class="bar-title">這一年的 12 個月，分別歸入哪個級距</div>
+        <div class="mstrip" id="strip"></div>
+      </div>
+
+      <table id="segTable">
+        <thead>
+          <tr><th>年資級距</th><th>本年月份</th><th>級距天數</th><th>本年月數</th><th>比例</th><th>本年貢獻</th></tr>
+        </thead>
+        <tbody id="segBody"></tbody>
+        <tfoot>
+          <tr><td colspan="5">本年合計（四捨五入前）</td><td class="num" id="segTotal"></td></tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+
+  <div class="card hide" id="ovCard">
+    <div class="ov-title">歷年一覽</div>
+    <div class="ov-wrap">
+      <table class="ov">
+        <thead><tr><th>年度</th><th>年資（年初）</th><th>原始計算</th><th>應休（取整）</th></tr></thead>
+        <tbody id="ovBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="notes">
+      <b>計算與使用說明</b>
+      <ul>
+        <li>依勞基法第 38 條，年資對應天數：滿 6 個月 3 天、滿 1 年 7 天、滿 2 年 10 天、滿 3 年 14 天、滿 5 年 15 天，滿 10 年起每年再加 1 天，最多 30 天。</li>
+        <li>按月計算：當年度每個月歸入「該月月底時」所屬的年資級距，跨級距的當月不足一整月也以一個月計（進位給較高級距）。各級距貢獻 ＝ 級距天數 × 該級距月數 ÷ 分母（滿 6 個月段為 6，其餘為 12），加總後四捨五入為整天。</li>
+        <li>本工具為試算參考。實際發假、遞延與離職結算仍以公司人資核定、並回歸週年制驗算為準（給假不得低於週年制）。</li>
+      </ul>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+function parseDate(s){ if(!s) return null; const p=s.split('-').map(Number); if(p.length!==3||p.some(isNaN)) return null; return new Date(Date.UTC(p[0],p[1]-1,p[2])); }
+function addMonths(d,n){ const x=new Date(d); x.setUTCMonth(x.getUTCMonth()+n); return x; }
+function addYears(d,n){ const x=new Date(d); x.setUTCFullYear(x.getUTCFullYear()+n); return x; }
+function lastDayOfMonth(Y,m){ return new Date(Date.UTC(Y,m+1,0)); }
+function round1(n){ return Math.round(n*10)/10; }
+function roundDays(n){ return Math.round(Number(n.toFixed(6))); }
+function fmtFull(d){ return d.getUTCFullYear()+'/'+String(d.getUTCMonth()+1).padStart(2,'0')+'/'+String(d.getUTCDate()).padStart(2,'0'); }
+
+function annualEntitlement(n){
+  if(n<=0) return 0;
+  if(n===1) return 7;
+  if(n===2) return 10;
+  if(n===3||n===4) return 14;
+  if(n>=5 && n<=9) return 15;
+  return Math.min(n+6,30);
+}
+
+// 某日期（取月底）所屬的年資級距
+function tierAt(hire, d){
+  if(d < addMonths(hire,6)) return null;                 // 未滿半年
+  if(d < addYears(hire,1)) return {key:'h', tier:'滿 6 個月', short:'滿半年', days:3, denom:6};
+  let n=1; while(addYears(hire,n+1) <= d) n++;
+  return {key:'y'+n, tier:'滿 '+n+' 年', short:'滿'+n+'年', days:annualEntitlement(n), denom:12};
+}
+
+function calcYear(hire, Y){
+  const order=[]; const map={};
+  for(let m=0;m<12;m++){
+    const t = tierAt(hire, lastDayOfMonth(Y,m));
+    const key = t? t.key : 'none';
+    if(!map[key]){ map[key]={info:t, months:[]}; order.push(key); }
+    map[key].months.push(m+1);
+  }
+  let total=0; const segs=[]; let none=null;
+  for(const key of order){
+    const g=map[key];
+    if(key==='none'){ none={months:g.months}; continue; }
+    const contrib=g.info.days*g.months.length/g.info.denom;
+    total+=contrib;
+    segs.push({info:g.info, months:g.months, count:g.months.length, contrib});
+  }
+  return {total, segs, none};
+}
+
+function seniorityAtYearStart(hire, Y){
+  const yStart=new Date(Date.UTC(Y,0,1));
+  if(yStart<hire) return -1;
+  let n=0; while(addYears(hire,n+1)<=yStart) n++;
+  return n;
+}
+function monthRange(arr){
+  if(arr.length===1) return arr[0]+' 月';
+  return arr[0]+'–'+arr[arr.length-1]+' 月';
+}
+
+function render(){
+  const hire=parseDate($('hire').value);
+  const Y=parseInt($('year').value,10);
+  $('hireRoc').textContent = hire? '民國 '+(hire.getUTCFullYear()-1911)+' 年 '+(hire.getUTCMonth()+1)+' 月 '+hire.getUTCDate()+' 日':'';
+  $('yearRoc').textContent = Number.isFinite(Y)? '民國 '+(Y-1911)+' 年':'';
+
+  // 首次可請休日（到職滿 6 個月），僅依到職日
+  if(hire){
+    const e=addMonths(hire,6);
+    $('eligible').classList.remove('hide');
+    $('eligibleText').innerHTML='到職滿 6 個月，自 <b>'+fmtFull(e)+'</b>（民國 '+(e.getUTCFullYear()-1911)+'/'+(e.getUTCMonth()+1)+'/'+e.getUTCDate()+'）起方可開始請休特休。';
+  } else {
+    $('eligible').classList.add('hide');
+  }
+
+  if(!hire || !Number.isFinite(Y)){
+    $('empty').classList.remove('hide'); $('result').classList.add('hide'); $('ovCard').classList.add('hide'); return;
+  }
+  $('empty').classList.add('hide'); $('result').classList.remove('hide'); $('ovCard').classList.remove('hide');
+
+  const {total,segs,none}=calcYear(hire,Y);
+  const rounded=roundDays(total);
+  $('ryear').textContent=Y+' 年（民國 '+(Y-1911)+' 年）';
+  $('days').innerHTML=rounded+'<span>天</span>';
+
+  const palette=['var(--green)','var(--blue)','#7A5BD6','var(--amber)'];
+
+  if(segs.length===0){
+    const sy=seniorityAtYearStart(hire,Y);
+    $('raw').innerHTML=(sy<0)?'本年度年資未達特別休假標準。':'本年度年資未達特別休假標準（年資未滿 6 個月）。';
+    $('barSection').classList.add('hide'); $('segTable').classList.add('hide');
+  } else {
+    $('barSection').classList.remove('hide'); $('segTable').classList.remove('hide');
+    $('raw').innerHTML='原始比例計算 <b>'+round1(total)+'</b> 天 <span class="arrow">→</span> 四捨五入 <b>'+rounded+'</b> 天';
+
+    // month strip (chronological: none first if any, then segs)
+    const strip=$('strip'); strip.innerHTML='';
+    const groups=[];
+    if(none) groups.push({none:true, months:none.months});
+    segs.forEach((s,i)=>groups.push({none:false, seg:s, color:palette[i%palette.length], months:s.months}));
+    groups.sort((a,b)=>a.months[0]-b.months[0]);
+    for(const g of groups){
+      const el=document.createElement('div');
+      const months = g.none ? g.months : g.seg.months;
+      el.style.flexGrow=months.length;
+      if(g.none){
+        el.className='mgroup none';
+        el.innerHTML='<div class="mg-label">年資不足</div><div class="mg-cells">'+months.map(m=>'<span>'+m+'</span>').join('')+'</div><div class="mg-contrib" style="opacity:.6">0</div>';
+      } else {
+        el.className='mgroup'; el.style.background=g.color;
+        el.innerHTML='<div class="mg-label">'+g.seg.info.short+'·'+g.seg.info.days+'天</div>'
+          +'<div class="mg-cells">'+months.map(m=>'<span>'+m+'</span>').join('')+'</div>'
+          +'<div class="mg-contrib">+'+round1(g.seg.contrib)+'</div>';
+        el.title=g.seg.info.tier+'：'+g.seg.count+' 個月 × '+g.seg.info.days+'天 ÷ '+g.seg.info.denom+' = '+round1(g.seg.contrib)+' 天';
+      }
+      strip.appendChild(el);
+    }
+
+    // segment table
+    const tb=$('segBody'); tb.innerHTML='';
+    segs.forEach(s=>{
+      const tr=document.createElement('tr');
+      tr.innerHTML='<td>'+s.info.tier+'</td>'
+        +'<td>'+monthRange(s.months)+'</td>'
+        +'<td class="num">'+s.info.days+'</td>'
+        +'<td class="num">'+s.count+'</td>'
+        +'<td class="num">'+s.count+' / '+s.info.denom+'</td>'
+        +'<td class="num">'+round1(s.contrib)+'</td>';
+      tb.appendChild(tr);
+    });
+    $('segTotal').textContent=round1(total)+' 天';
+  }
+
+  // overview
+  const firstHalf=addMonths(hire,6);
+  let startY=firstHalf.getUTCFullYear();
+  let endY=Y+5;
+  if(endY-startY>24) startY=Math.max(startY,Y-3);
+  const ovb=$('ovBody'); ovb.innerHTML='';
+  for(let y=startY;y<=endY;y++){
+    const r=calcYear(hire,y);
+    const rd=roundDays(r.total);
+    const sn=seniorityAtYearStart(hire,y);
+    const snTxt= sn<0?'—':(sn===0?'未滿1年':'滿'+sn+'年');
+    const tr=document.createElement('tr');
+    if(y===Y) tr.className='here';
+    tr.innerHTML='<td>'+y+'（民'+(y-1911)+'）'+(y===Y?'<span class="tag">本年</span>':'')+'</td>'
+      +'<td>'+snTxt+'</td><td>'+round1(r.total)+'</td><td>'+rd+' 天</td>';
+    ovb.appendChild(tr);
+  }
+}
+
+['hire','year'].forEach(id=>{ $(id).addEventListener('input',render); $(id).addEventListener('change',render); });
+render();
+</script>
+</body>
+</html>
