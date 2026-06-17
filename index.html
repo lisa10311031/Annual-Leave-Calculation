@@ -39,6 +39,9 @@
   .result-label b{color:var(--ink);font-weight:700}
   .bignum{font-family:var(--mono);font-weight:700;font-size:64px;line-height:1;letter-spacing:-.02em;color:var(--amber);font-variant-numeric:tabular-nums;margin:6px 0 2px}
   .bignum span{font-size:24px;color:var(--ink);font-weight:600;margin-left:6px}
+  .period{margin:4px 0 10px;display:inline-flex;align-items:center;gap:7px;font-size:13px;color:var(--ink-soft);background:var(--paper);border:1px solid var(--line);border-radius:9px;padding:7px 11px;line-height:1.4}
+  .period svg{flex:none;color:var(--blue)}
+  .period b{color:var(--ink);font-weight:700;font-variant-numeric:tabular-nums}
   .rawline{font-size:13.5px;color:var(--ink-soft);font-variant-numeric:tabular-nums}
   .rawline .arrow{color:var(--ink-faint);margin:0 7px}
   .rawline b{color:var(--ink);font-weight:700;font-family:var(--mono)}
@@ -83,9 +86,9 @@
 <div class="wrap">
 
   <header>
-    <div class="eyebrow">員工自助試算</div>
-    <h1>特別休假試算</h1>
-    <p>輸入到職日，查看指定年度可休的特休天數。本公司採<b>歷年制（按月計算）</b>：把當年度逐月歸入對應年資級距，<b>不足一個月者以一個月計</b>，滿 6 個月該段以 ÷6、其餘級距以 ÷12 換算比例，最後<b>四捨五入</b>取整天。</p>
+    <div class="eyebrow">日電貿集團</div>
+    <h1>員工特別休假試算</h1>
+    <p>請輸入到職日，查看指定年度可休的特休天數。</p>
   </header>
 
   <div class="card">
@@ -118,6 +121,7 @@
     <div id="result" class="hide">
       <div class="result-label">特休天數 · <b id="ryear"></b></div>
       <div class="bignum" id="days">–<span>天</span></div>
+      <div class="period hide" id="period"></div>
       <div class="rawline" id="raw"></div>
 
       <div class="bar-section" id="barSection">
@@ -131,7 +135,7 @@
         </thead>
         <tbody id="segBody"></tbody>
         <tfoot>
-          <tr><td colspan="5">本年合計（四捨五入前）</td><td class="num" id="segTotal"></td></tr>
+          <tr><td colspan="5">本年比例計算合計</td><td class="num" id="segTotal"></td></tr>
         </tfoot>
       </table>
     </div>
@@ -139,9 +143,10 @@
 
   <div class="card hide" id="ovCard">
     <div class="ov-title">歷年一覽</div>
+    <div style="font-size:12px;color:var(--ink-faint);margin-bottom:10px;line-height:1.5">「應休天數」採累計四捨五入，故可能與「本年比例」單獨四捨五入不同（避免跨年度重複進位）。</div>
     <div class="ov-wrap">
       <table class="ov">
-        <thead><tr><th>年度</th><th>年資（年初）</th><th>原始計算</th><th>應休（取整）</th></tr></thead>
+        <thead><tr><th>年度</th><th>年資（年初）</th><th>本年比例</th><th>應休天數</th></tr></thead>
         <tbody id="ovBody"></tbody>
       </table>
     </div>
@@ -151,9 +156,10 @@
     <div class="notes">
       <b>計算與使用說明</b>
       <ul>
+        <li>本公司採歷年制（按月計算）計算方式以年度為基準〈自 1 月 1 日至 12 月 31 日〉，以利經辦人員有效管理特別休假。</li>
         <li>依勞基法第 38 條，年資對應天數：滿 6 個月 3 天、滿 1 年 7 天、滿 2 年 10 天、滿 3 年 14 天、滿 5 年 15 天，滿 10 年起每年再加 1 天，最多 30 天。</li>
-        <li>按月計算：當年度每個月歸入「該月月底時」所屬的年資級距，跨級距的當月不足一整月也以一個月計（進位給較高級距）。各級距貢獻 ＝ 級距天數 × 該級距月數 ÷ 分母（滿 6 個月段為 6，其餘為 12），加總後四捨五入為整天。</li>
-        <li>本工具為試算參考。實際發假、遞延與離職結算仍以公司人資核定、並回歸週年制驗算為準（給假不得低於週年制）。</li>
+        <li>本工具為試算參考。實際給假仍以人資單位公告之年假天數為準。</li>
+        <li>人員於年度中提出辭職申請，人資單位將依勞基法及相關規定，計算人員到職日至離職日止之工作年資應享之年休假日數，減去公司歷年給假日數〈不含離職當年度〉與人員之離職當年度已休之日數，剩餘之日數即為人員至離職日前仍可休之年休假。</li>
       </ul>
     </div>
   </div>
@@ -216,6 +222,20 @@ function monthRange(arr){
   if(arr.length===1) return arr[0]+' 月';
   return arr[0]+'–'+arr[arr.length-1]+' 月';
 }
+// 累計到某年底的原始（未四捨五入）特休總天數
+function cumRawThrough(hire, Y){
+  const firstY = addMonths(hire,6).getUTCFullYear();
+  if(Y < firstY) return 0;
+  let s=0;
+  for(let y=firstY; y<=Y; y++) s += calcYear(hire,y).total;
+  return s;
+}
+// 累計四捨五入：本年應給 = 累計應有(四捨五入) − 前年度累計已給。避免跨年度重複進位
+function grantForYear(hire, Y){
+  const cumY    = roundDays(cumRawThrough(hire, Y));
+  const cumPrev = roundDays(cumRawThrough(hire, Y-1));
+  return {grant: cumY - cumPrev, raw: calcYear(hire,Y).total, cumY, cumPrev};
+}
 
 function render(){
   const hire=parseDate($('hire').value);
@@ -227,7 +247,7 @@ function render(){
   if(hire){
     const e=addMonths(hire,6);
     $('eligible').classList.remove('hide');
-    $('eligibleText').innerHTML='到職滿 6 個月，自 <b>'+fmtFull(e)+'</b>（民國 '+(e.getUTCFullYear()-1911)+'/'+(e.getUTCMonth()+1)+'/'+e.getUTCDate()+'）起方可開始請休特休。';
+    $('eligibleText').innerHTML='到職滿 6 個月後（<b>'+fmtFull(e)+'</b>，民國 '+(e.getUTCFullYear()-1911)+'/'+(e.getUTCMonth()+1)+'/'+e.getUTCDate()+'）才開始有特別休假。各年度可休天數與請休期間，請依下方試算結果為準。';
   } else {
     $('eligible').classList.add('hide');
   }
@@ -238,19 +258,27 @@ function render(){
   $('empty').classList.add('hide'); $('result').classList.remove('hide'); $('ovCard').classList.remove('hide');
 
   const {total,segs,none}=calcYear(hire,Y);
-  const rounded=roundDays(total);
+  const g=grantForYear(hire,Y);
   $('ryear').textContent=Y+' 年（民國 '+(Y-1911)+' 年）';
-  $('days').innerHTML=rounded+'<span>天</span>';
+  $('days').innerHTML=g.grant+'<span>天</span>';
 
   const palette=['var(--green)','var(--blue)','#7A5BD6','var(--amber)'];
 
   if(segs.length===0){
     const sy=seniorityAtYearStart(hire,Y);
     $('raw').innerHTML=(sy<0)?'本年度年資未達特別休假標準。':'本年度年資未達特別休假標準（年資未滿 6 個月）。';
+    $('period').classList.add('hide');
     $('barSection').classList.add('hide'); $('segTable').classList.add('hide');
   } else {
     $('barSection').classList.remove('hide'); $('segTable').classList.remove('hide');
-    $('raw').innerHTML='原始比例計算 <b>'+round1(total)+'</b> 天 <span class="arrow">→</span> 四捨五入 <b>'+rounded+'</b> 天';
+    $('raw').innerHTML='本年比例計算 <b>'+round1(total)+'</b> 天　•　累計應有 <b>'+g.cumY+'</b> 天 － 前年度已給 <b>'+g.cumPrev+'</b> 天 <span class="arrow">＝</span> 本年應休 <b>'+g.grant+'</b> 天';
+
+    // 可請休期間（依試算年度）：到職當年自滿半年日起，其餘年度自 1/1 起，至該年 12/31 止
+    const half=addMonths(hire,6);
+    const yStart=new Date(Date.UTC(Y,0,1));
+    const from = half>yStart ? half : yStart;
+    $('period').classList.remove('hide');
+    $('period').innerHTML='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>這 <b>'+g.grant+'</b> 天為 <b>'+Y+'</b> 年度可休，請休期間 <b>'+fmtFull(from)+'</b> 至 <b>'+Y+'/12/31</b>';
 
     // month strip (chronological: none first if any, then segs)
     const strip=$('strip'); strip.innerHTML='';
@@ -298,13 +326,13 @@ function render(){
   const ovb=$('ovBody'); ovb.innerHTML='';
   for(let y=startY;y<=endY;y++){
     const r=calcYear(hire,y);
-    const rd=roundDays(r.total);
+    const gy=grantForYear(hire,y);
     const sn=seniorityAtYearStart(hire,y);
     const snTxt= sn<0?'—':(sn===0?'未滿1年':'滿'+sn+'年');
     const tr=document.createElement('tr');
     if(y===Y) tr.className='here';
     tr.innerHTML='<td>'+y+'（民'+(y-1911)+'）'+(y===Y?'<span class="tag">本年</span>':'')+'</td>'
-      +'<td>'+snTxt+'</td><td>'+round1(r.total)+'</td><td>'+rd+' 天</td>';
+      +'<td>'+snTxt+'</td><td>'+round1(r.total)+'</td><td>'+gy.grant+' 天</td>';
     ovb.appendChild(tr);
   }
 }
